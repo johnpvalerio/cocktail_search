@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1'
 API_KEY = None
 
@@ -24,7 +26,7 @@ class Api:
         global API_KEY
         API_KEY = key
 
-    def query(self, cid: str, name: str, filters: list[str]) -> None:
+    def query(self, cid: str, name: str, filters: List[str]) -> None:
         """
         Query manager, calls desired query from argument given
         :param cid: str - cocktail ID
@@ -50,7 +52,7 @@ class Api:
         """
         pass
 
-    def queryFilters(self, filters: list[str]) -> None:
+    def queryFilters(self, filters: List[str]) -> None:
         """
         Fetch list of cocktails with cocktail filters from API
         :param filters: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
@@ -60,7 +62,7 @@ class Api:
 
 
 class Cocktail:
-    def __init__(self, cocktailDict: dict) -> None:
+    def __init__(self, cocktailDict: Dict[str, str]) -> None:
         """
         Cocktail constructor
         If not in dict, set to None
@@ -123,3 +125,31 @@ class Cocktail:
         self.measure13 = cocktailDict["strMeasure13"] if "strMeasure13" in cocktailDict else None
         self.measure14 = cocktailDict["strMeasure14"] if "strMeasure14" in cocktailDict else None
         self.measure15 = cocktailDict["strMeasure15"] if "strMeasure15" in cocktailDict else None
+
+    def getHint(self) -> Dict[str, str]:
+        """
+        Gets most relevant attributes to find cocktail
+        if id given, return id
+        else give dict of filters (name/ingredients/alcoholic/category/glass)
+        :return: Dict[str, str] - param key, value
+        """
+        output = {}
+        if self.id:
+            output['i'] = self.id
+        else:
+            if self.name is not None:
+                output['s'] = self.name
+            ingrList = []
+            for i in range(1, 15+1):
+                ingr = getattr(self, 'ingredient' + str(i))
+                if ingr:
+                    ingrList.append(ingr)
+            if ingrList:
+                output['i'] = ingrList
+            if self.alcoholic is not None:
+                output['a'] = self.alcoholic
+            if self.category is not None:
+                output['c'] = self.category
+            if self.glass is not None:
+                output['g'] = self.glass
+        return output
