@@ -1,7 +1,9 @@
 from typing import List, Dict
 
-API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1'
-API_KEY = None
+import requests
+
+API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1/'
+API_KEY = ''
 
 
 class Api:
@@ -18,6 +20,7 @@ class Api:
     glass -> cocktail list
     list categories/glasses/ingredients/alcoholic -> list
     """
+
     def __init__(self, key: str = '1') -> None:
         """
         API constructor
@@ -26,39 +29,81 @@ class Api:
         global API_KEY
         API_KEY = key
 
-    def query(self, cid: str, name: str, filters: List[str]) -> None:
+    def query(self, hints: Dict[str, str] = None) -> Dict[str, list]:
         """
         Query manager, calls desired query from argument given
-        :param cid: str - cocktail ID
-        :param name: str - cocktail name
-        :param filters: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
+        :param hints: Dict[str, str] - cocktail hints
         :return: None
         """
-        pass
+        if 'id' in hints:
+            output = self.queryId(hints['id'])
+            print('id', output)
+        else:
+            name = hints['name'] if 'name' in hints else None
+            temp1 = self.queryName(name)
+            print('temp1', temp1)
 
-    def queryId(self, cid: str) -> None:
+            ing = hints['ing'] if 'ing' in hints else None
+            alc = hints['alc'] if 'alc' in hints else None
+            cat = hints['cat'] if 'cat' in hints else None
+            gla = hints['gla'] if 'gla' in hints else None
+            temp2 = self.queryFilters(ing, alc, cat, gla)
+            print('temp2', temp2)
+            output = temp1
+            # todo: find intersection of temp1 & temp 2 keys
+        print(output)
+        return output
+
+    def queryId(self, cid: str) -> Dict[str, list]:
         """
         Fetch cocktail with cocktail ID from API
         :param cid: str - cocktail ID
         :return: None
         """
-        pass
+        url = API_BASE_URL + API_KEY + '/lookup.php'
+        data = requests.get(url, params={'i': cid})
+        data = data.json()
+        return data
 
-    def queryName(self, name: str) -> None:
+    def queryName(self, name: str = None) -> Dict[str, list]:
         """
         Fetch list of cocktails with cocktail name from API
         :param name: str - cocktail name
         :return: None
         """
-        pass
+        if not name:
+            return {'drinks': []}
+        url = API_BASE_URL + API_KEY + '/search.php'
+        data = requests.get(url, params={'s': name})
+        data = data.json()
+        return data
 
-    def queryFilters(self, filters: List[str]) -> None:
+    def queryFilters(self, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
+                     glass: str = None) -> Dict[str, list]:
         """
         Fetch list of cocktails with cocktail filters from API
-        :param filters: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
+        :param alcoholic: str - Alcoholic, Non Alcoholic, or Optional alcohol
+        :param category: str - drink category: Ordinary Drink, Cocktail, Cocoa, etc
+        :param glass: str - glass type: Highball glass, Cocktail glass, etc
+        :param ingredients: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
         :return: None
         """
-        pass
+        url = API_BASE_URL + API_KEY + '/filter.php'
+        payload = {}
+        if ingredients:
+            payload['i'] = ingredients
+        if alcoholic:
+            payload['a'] = alcoholic
+        if category:
+            payload['c'] = category
+        if glass:
+            payload['g'] = glass
+
+        if not payload:
+            return {'drinks': []}
+        data = requests.get(url, params=payload)
+        data = data.json()
+        return data
 
 
 class Cocktail:
@@ -135,21 +180,22 @@ class Cocktail:
         """
         output = {}
         if self.id:
-            output['i'] = self.id
+            output['id'] = self.id
         else:
             if self.name is not None:
-                output['s'] = self.name
+                output['name'] = self.name
             ingrList = []
-            for i in range(1, 15+1):
+            for i in range(1, 15 + 1):
                 ingr = getattr(self, 'ingredient' + str(i))
                 if ingr:
                     ingrList.append(ingr)
             if ingrList:
-                output['i'] = ingrList
+                output['ing'] = ingrList
             if self.alcoholic is not None:
-                output['a'] = self.alcoholic
+                output['alc'] = self.alcoholic
             if self.category is not None:
-                output['c'] = self.category
+                output['cat'] = self.category
             if self.glass is not None:
-                output['g'] = self.glass
+                output['gla'] = self.glass
+        print('hint', output)
         return output
