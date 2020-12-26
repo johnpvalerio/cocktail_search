@@ -29,7 +29,7 @@ class Api:
         global API_KEY
         API_KEY = key
 
-    def query(self, hints: Dict[str, str] = None) -> Dict[str, list]:
+    def query(self, hints: Dict[str, str] = None) -> List[Dict[str, list]]:
         """
         Query manager, calls desired query from argument given
         :param hints: Dict[str, str] - cocktail hints
@@ -37,49 +37,55 @@ class Api:
         """
         if 'id' in hints:
             output = self.queryId(hints['id'])
-            print('id', output)
         else:
+            # todo: error handling if query 0 results
             name = hints['name'] if 'name' in hints else None
             temp1 = self.queryName(name)
-            print('temp1', temp1)
 
             ing = hints['ing'] if 'ing' in hints else None
             alc = hints['alc'] if 'alc' in hints else None
             cat = hints['cat'] if 'cat' in hints else None
             gla = hints['gla'] if 'gla' in hints else None
             temp2 = self.queryFilters(ing, alc, cat, gla)
-            print('temp2', temp2)
-            output = temp1
-            # todo: find intersection of temp1 & temp 2 keys
+
+            keys1 = [x['idDrink'] for x in temp1]
+            keys2 = [x['idDrink'] for x in temp2]
+            keys = list(set(keys1) & set(keys2))
+            print(keys)
+
+            output = [self.queryId(x)[0] for x in keys]
         print(output)
         return output
 
-    def queryId(self, cid: str) -> Dict[str, list]:
+    @staticmethod
+    def queryId(cid: str) -> List[Dict[str, list]]:
         """
-        Fetch cocktail with cocktail ID from API
+        Fetch at most 1 cocktail with cocktail ID from API
         :param cid: str - cocktail ID
         :return: None
         """
         url = API_BASE_URL + API_KEY + '/lookup.php'
         data = requests.get(url, params={'i': cid})
         data = data.json()
-        return data
+        return data['drinks']
 
-    def queryName(self, name: str = None) -> Dict[str, list]:
+    @staticmethod
+    def queryName(name: str = None) -> List[Dict[str, list]]:
         """
         Fetch list of cocktails with cocktail name from API
         :param name: str - cocktail name
         :return: None
         """
         if not name:
-            return {'drinks': []}
+            return [{}]
         url = API_BASE_URL + API_KEY + '/search.php'
         data = requests.get(url, params={'s': name})
         data = data.json()
-        return data
+        return data['drinks']
 
-    def queryFilters(self, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
-                     glass: str = None) -> Dict[str, list]:
+    @staticmethod
+    def queryFilters(ingredients: List[str] = None, alcoholic: str = None, category: str = None,
+                     glass: str = None) -> List[Dict[str, list]]:
         """
         Fetch list of cocktails with cocktail filters from API
         :param alcoholic: str - Alcoholic, Non Alcoholic, or Optional alcohol
@@ -100,10 +106,10 @@ class Api:
             payload['g'] = glass
 
         if not payload:
-            return {'drinks': []}
+            return [{}]
         data = requests.get(url, params=payload)
         data = data.json()
-        return data
+        return data['drinks']
 
 
 class Cocktail:
