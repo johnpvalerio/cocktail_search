@@ -38,20 +38,16 @@ class Api:
         if 'id' in hints:
             output = self.queryId(hints['id'])
         else:
-            # todo: error handling if query 0 results
             name = hints['name'] if 'name' in hints else None
             temp1 = self.queryName(name)
-
             ing = hints['ing'] if 'ing' in hints else None
             alc = hints['alc'] if 'alc' in hints else None
             cat = hints['cat'] if 'cat' in hints else None
             gla = hints['gla'] if 'gla' in hints else None
             temp2 = self.queryFilters(ing, alc, cat, gla)
-
-            keys1 = [x['idDrink'] for x in temp1]
-            keys2 = [x['idDrink'] for x in temp2]
+            keys1 = [x['idDrink'] for x in temp1 if x]
+            keys2 = [x['idDrink'] for x in temp2 if x]
             keys = list(set(keys1) & set(keys2))
-            print(keys)
 
             output = [self.queryId(x)[0] for x in keys]
         print(output)
@@ -81,7 +77,7 @@ class Api:
         url = API_BASE_URL + API_KEY + '/search.php'
         data = requests.get(url, params={'s': name})
         data = data.json()
-        return data['drinks']
+        return data['drinks'] if data['drinks'] else [{}]
 
     @staticmethod
     def queryFilters(ingredients: List[str] = None, alcoholic: str = None, category: str = None,
@@ -109,7 +105,7 @@ class Api:
             return [{}]
         data = requests.get(url, params=payload)
         data = data.json()
-        return data['drinks']
+        return data['drinks'] if data['drinks'] else [{}]
 
 
 class Cocktail:
