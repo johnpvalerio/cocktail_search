@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import requests
 
@@ -38,7 +38,6 @@ class Api:
         if 'id' in hints:
             output = self.queryId(hints['id'])
         else:
-            # todo: error handling if query 0 results
             name = hints['name'] if 'name' in hints else None
 
             ing = hints['ing'] if 'ing' in hints else None
@@ -46,7 +45,6 @@ class Api:
             cat = hints['cat'] if 'cat' in hints else None
             gla = hints['gla'] if 'gla' in hints else None
             temp = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
-            print('t2', temp)
             keys = self.intersectKeys(*temp)
             print(keys)
             output = [self.queryId(x) for x in keys]
@@ -55,7 +53,7 @@ class Api:
         return output
 
     @staticmethod
-    def queryId(cid: str) -> List[Dict[str, list]]:
+    def queryId(cid: str) -> Dict[str, list]:
         """
         Fetch at most 1 cocktail with cocktail ID from API
         :param cid: str - cocktail ID
@@ -64,22 +62,21 @@ class Api:
         url = API_BASE_URL + API_KEY + '/lookup.php'
         data = requests.get(url, params={'i': cid})
         data = data.json()
-        return data['drinks']
+        return data['drinks'][0]
 
     @staticmethod
-    def intersectKeys(*cocktails):
+    def intersectKeys(*cocktails: List[Dict[str, str]]) -> List[str]:
         keys = []
-        print('INTERSECT')
         for _c in cocktails:
-            print(_c)
             keys1 = set(x['idDrink'] for x in _c)
             keys.append(keys1)
+        if not keys:
+            return []
         return list(set.intersection(*keys))
 
     @staticmethod
     def queryFilters(name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
-                     glass: str = None) -> None:
-        # todo: separate this, each filter needs to query
+                     glass: str = None) -> List[List[Dict[str, str]]]:
         """
         Fetch list of cocktails with cocktail filters from API
         :param name:
@@ -97,11 +94,11 @@ class Api:
             data = requests.get(url, params={_type: payload})
             # if input not in db
             if data.text == '':
-                return [{}]
+                return None
             data = data.json()
             return data['drinks']
 
-        def qName(name):
+        def qName(name: str = None) -> Optional[List[Dict[str, str]]]:
             """
             Fetch list of cocktails with cocktail name from API
             :param name: str - cocktail name
@@ -110,31 +107,36 @@ class Api:
             url = API_BASE_URL + API_KEY + '/search.php'
             data = requests.get(url, params={'s': name})
             if data.text == '':
-                return [{}]
+                return None
             data = data.json()
             return data['drinks']
 
         if name:
             f0 = qName(name)
-            print('name', f0)
-            cocktails.append(f0)
+            if f0:
+                print('name', len(f0), f0)
+                cocktails.append(f0)
         if ingredients:
             for ingr in ingredients:
                 f1 = qFilter(ingr, 'i')
-                print(ingr, f1)
-                cocktails.append(f1)
+                if f1:
+                    print(ingr, len(f1), f1)
+                    cocktails.append(f1)
         if alcoholic:
             f2 = qFilter(alcoholic, 'a')
-            cocktails.append(f2)
-            print('alc', f2)
+            if f2:
+                cocktails.append(f2)
+                print('alc', len(f2), f2)
         if category:
             f3 = qFilter(category, 'c')
-            cocktails.append(f3)
-            print('cat', f3)
+            if f3:
+                cocktails.append(f3)
+                print('cat', len(f3), f3)
         if glass:
             f4 = qFilter(glass, 'g')
-            cocktails.append(f4)
-            print('glass', f4)
+            if f4:
+                cocktails.append(f4)
+                print('glass', len(f4), f4)
 
         return cocktails
 
