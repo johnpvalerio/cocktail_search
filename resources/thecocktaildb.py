@@ -40,20 +40,17 @@ class Api:
         else:
             # todo: error handling if query 0 results
             name = hints['name'] if 'name' in hints else None
-            temp1 = self.queryName(name)
 
             ing = hints['ing'] if 'ing' in hints else None
             alc = hints['alc'] if 'alc' in hints else None
             cat = hints['cat'] if 'cat' in hints else None
             gla = hints['gla'] if 'gla' in hints else None
-            temp2 = self.queryFilters(ing, alc, cat, gla)
-
-            keys1 = [x['idDrink'] for x in temp1]
-            keys2 = [x['idDrink'] for x in temp2]
-            keys = list(set(keys1) & set(keys2))
+            temp = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
+            print('t2', temp)
+            keys = self.intersectKeys(*temp)
             print(keys)
+            output = [self.queryId(x) for x in keys]
 
-            output = [self.queryId(x)[0] for x in keys]
         print(output)
         return output
 
@@ -70,46 +67,76 @@ class Api:
         return data['drinks']
 
     @staticmethod
-    def queryName(name: str = None) -> List[Dict[str, list]]:
-        """
-        Fetch list of cocktails with cocktail name from API
-        :param name: str - cocktail name
-        :return: None
-        """
-        if not name:
-            return [{}]
-        url = API_BASE_URL + API_KEY + '/search.php'
-        data = requests.get(url, params={'s': name})
-        data = data.json()
-        return data['drinks']
+    def intersectKeys(*cocktails):
+        keys = []
+        print('INTERSECT')
+        for _c in cocktails:
+            print(_c)
+            keys1 = set(x['idDrink'] for x in _c)
+            keys.append(keys1)
+        return list(set.intersection(*keys))
 
     @staticmethod
-    def queryFilters(ingredients: List[str] = None, alcoholic: str = None, category: str = None,
-                     glass: str = None) -> List[Dict[str, list]]:
+    def queryFilters(name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
+                     glass: str = None) -> None:
+        # todo: separate this, each filter needs to query
         """
         Fetch list of cocktails with cocktail filters from API
+        :param name:
         :param alcoholic: str - Alcoholic, Non Alcoholic, or Optional alcohol
         :param category: str - drink category: Ordinary Drink, Cocktail, Cocoa, etc
         :param glass: str - glass type: Highball glass, Cocktail glass, etc
         :param ingredients: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
         :return: None
         """
-        url = API_BASE_URL + API_KEY + '/filter.php'
-        payload = {}
-        if ingredients:
-            payload['i'] = ingredients
-        if alcoholic:
-            payload['a'] = alcoholic
-        if category:
-            payload['c'] = category
-        if glass:
-            payload['g'] = glass
 
-        if not payload:
-            return [{}]
-        data = requests.get(url, params=payload)
-        data = data.json()
-        return data['drinks']
+        cocktails = []
+
+        def qFilter(payload, _type):
+            url = API_BASE_URL + API_KEY + '/filter.php'
+            data = requests.get(url, params={_type: payload})
+            # if input not in db
+            if data.text == '':
+                return [{}]
+            data = data.json()
+            return data['drinks']
+
+        def qName(name):
+            """
+            Fetch list of cocktails with cocktail name from API
+            :param name: str - cocktail name
+            :return:
+            """
+            url = API_BASE_URL + API_KEY + '/search.php'
+            data = requests.get(url, params={'s': name})
+            if data.text == '':
+                return [{}]
+            data = data.json()
+            return data['drinks']
+
+        if name:
+            f0 = qName(name)
+            print('name', f0)
+            cocktails.append(f0)
+        if ingredients:
+            for ingr in ingredients:
+                f1 = qFilter(ingr, 'i')
+                print(ingr, f1)
+                cocktails.append(f1)
+        if alcoholic:
+            f2 = qFilter(alcoholic, 'a')
+            cocktails.append(f2)
+            print('alc', f2)
+        if category:
+            f3 = qFilter(category, 'c')
+            cocktails.append(f3)
+            print('cat', f3)
+        if glass:
+            f4 = qFilter(glass, 'g')
+            cocktails.append(f4)
+            print('glass', f4)
+
+        return cocktails
 
 
 class Cocktail:
@@ -142,7 +169,8 @@ class Cocktail:
         self.thumb = cocktailDict["strDrinkThumb"] if "strDrinkThumb" in cocktailDict else None
         self.imgSrc = cocktailDict["strImageSource"] if "strImageSource" in cocktailDict else None
         self.imgAttr = cocktailDict["strImageAttribution"] if "strImageAttribution" in cocktailDict else None
-        self.creativeCC = cocktailDict["strCreativeCommonsConfirmed"] if "strCreativeCommonsConfirmed" in cocktailDict else None
+        self.creativeCC = cocktailDict[
+            "strCreativeCommonsConfirmed"] if "strCreativeCommonsConfirmed" in cocktailDict else None
         self.dateMod = cocktailDict["dateModified"] if "dateModified" in cocktailDict else None
 
         self.ingredient1 = cocktailDict["strIngredient1"] if "strIngredient1" in cocktailDict else None
