@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Dict, Optional
 
 import requests
@@ -178,12 +179,12 @@ class Cocktail:
         self.iba = cocktailDict["strIBA"] if "strIBA" in cocktailDict else None
         self.alcoholic = cocktailDict["strAlcoholic"] if "strAlcoholic" in cocktailDict else None
         self.glass = cocktailDict["strGlass"] if "strGlass" in cocktailDict else None
-        self.recipe = cocktailDict["strInstructions"] if "strInstructions" in cocktailDict else None
-        self.recipeES = cocktailDict["strInstructionsES"] if "strInstructionsES" in cocktailDict else None
-        self.recipeDE = cocktailDict["strInstructionsDE"] if "strInstructionsDE" in cocktailDict else None
-        self.recipeFR = cocktailDict["strInstructionsFR"] if "strInstructionsFR" in cocktailDict else None
-        self.recipeZHHANS = cocktailDict["strInstructionsZH-HANS"] if "strInstructionsZH-HANS" in cocktailDict else None
-        self.recipeZHHANT = cocktailDict["strInstructionsZH-HANT"] if "strInstructionsZH-HANT" in cocktailDict else None
+        self.instructions = cocktailDict["strInstructions"] if "strInstructions" in cocktailDict else None
+        self.instructionsES = cocktailDict["strInstructionsES"] if "strInstructionsES" in cocktailDict else None
+        self.instructionsDE = cocktailDict["strInstructionsDE"] if "strInstructionsDE" in cocktailDict else None
+        self.instructionsFR = cocktailDict["strInstructionsFR"] if "strInstructionsFR" in cocktailDict else None
+        self.instructionsZHHANS = cocktailDict["strInstructionsZH-HANS"] if "strInstructionsZH-HANS" in cocktailDict else None
+        self.instructionsZHHANT = cocktailDict["strInstructionsZH-HANT"] if "strInstructionsZH-HANT" in cocktailDict else None
         self.thumb = cocktailDict["strDrinkThumb"] if "strDrinkThumb" in cocktailDict else None
         self.imgSrc = cocktailDict["strImageSource"] if "strImageSource" in cocktailDict else None
         self.imgAttr = cocktailDict["strImageAttribution"] if "strImageAttribution" in cocktailDict else None
@@ -250,3 +251,55 @@ class Cocktail:
                 output['gla'] = self.glass
         print('hint', output)
         return output
+
+    def getRecipes(self):
+        output = []
+        for i in range(1, 15 + 1):
+            # todo: maybe allow ingredient/drink to be none (just remove) and not stop complete entry
+            try:
+                if getattr(self, 'ingredient' + str(i)) is None:
+                    continue
+                elif getattr(self, 'measure' + str(i)) is None:
+                    continue
+                recipe = {'ingredient': getattr(self, 'ingredient' + str(i)),
+                          'measure:': getattr(self, 'measure' + str(i))}
+                output.append(recipe)
+            except AttributeError:
+                continue
+        return output
+
+    def getGroupLanguage(self, attribute):
+        output = {}
+        languages = ['', 'ES', 'DE', 'FR', 'ZHHANS', 'ZHHANT']
+        for _l in languages:
+            if getattr(self, attribute + _l) is None:
+                continue
+            if _l == '':
+                output['en'] = getattr(self, attribute + _l)
+            elif _l[:2] == 'ZH':
+                output[_l[:2] + '-' + _l[2:]] = getattr(self, attribute + _l)
+            else:
+                output[_l.lower()] = getattr(self, attribute + _l)
+        return output
+
+    def getInstructions(self):
+        return self.getGroupLanguage('instructions')
+
+    def getNames(self):
+        return self.getGroupLanguage('name')
+
+    def getDate(self):
+        if not self.dateMod:
+            return
+        date = datetime.datetime.strptime(self.dateMod, '%Y-%m-%d %H:%M:%S')
+        return date.isoformat()
+
+    def getIsAlcoholic(self):
+        if not self.alcoholic:
+            return
+        return True if self.alcoholic in ['Alcoholic', 'Optional alcohol'] else False
+
+    def getIsCreativeCC(self):
+        if not self.creativeCC:
+            return
+        return True if self.creativeCC == 'Yes' else False
