@@ -35,8 +35,9 @@ class Api:
         :param hints: Dict[str, str] - cocktail hints
         :return: None
         """
+        output = []
         if 'id' in hints:
-            output = self.queryId(hints['id'])
+            output = [self.queryId(hints['id'])]
         else:
             name = hints['name'] if 'name' in hints else None
 
@@ -48,7 +49,8 @@ class Api:
             keys = self.intersectKeys(*temp)
             print(keys)
             output = [self.queryId(x) for x in keys]
-
+        if not output:
+            return None
         print(output)
         return output
 
@@ -61,11 +63,18 @@ class Api:
         """
         url = API_BASE_URL + API_KEY + '/lookup.php'
         data = requests.get(url, params={'i': cid})
+        if data.text == '':
+            return None
         data = data.json()
         return data['drinks'][0]
 
     @staticmethod
     def intersectKeys(*cocktails: List[Dict[str, str]]) -> List[str]:
+        """
+        From given cocktail dicts, finds common idDrink strings
+        :param cocktails: List(Dict) - Lists of cocktail dicts
+        :return: List(str) - List of idDrink strings
+        """
         keys = []
         for _c in cocktails:
             keys1 = set(x['idDrink'] for x in _c)
@@ -90,6 +99,12 @@ class Api:
         cocktails = []
 
         def qFilter(payload, _type):
+            """
+            Inner function to query API database, queries ingredients, categories, glass, alcoholic
+            :param payload: string - item filtered (ingredients, categories, glass, alcoholic)
+            :param _type: string - API query filter param (i, a, c, g)
+            :return:
+            """
             url = API_BASE_URL + API_KEY + '/filter.php'
             data = requests.get(url, params={_type: payload})
             # if input not in db
@@ -117,6 +132,7 @@ class Api:
                 print('name', len(f0), f0)
                 cocktails.append(f0)
         if ingredients:
+            # todo: if premium key, use batched ingredients function
             for ingr in ingredients:
                 f1 = qFilter(ingr, 'i')
                 if f1:
