@@ -11,6 +11,9 @@ def main() -> None:
     else use default example
     :return: None
     """
+    # get API key from file
+    with open('resources/config.json') as f:
+        key = json.load(f)['API_KEY']
     paths = sys.argv[1:] if len(sys.argv) > 1 else ['example/input.json']
     # loop through paths
     for fpath in paths:
@@ -20,7 +23,7 @@ def main() -> None:
                 cInput = json.load(f)['drinks']
                 # loop through drinks in dict
                 for drink in cInput:
-                    CocktailSearch.search(drink)
+                    CocktailSearch.search(drink, key)
         except FileNotFoundError:
             continue
 

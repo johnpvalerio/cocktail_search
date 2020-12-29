@@ -46,9 +46,9 @@ def cocktailDictFormat(cocktails):
     return output
 
 
-def search(drink: dict):
+def search(drink: dict, key: str):
     cocktail = Cocktail(drink)
-    api = Api('1')
+    api = Api(key)
     cocktailQueries = api.query(cocktail.getHint())
     cocktailList = [Cocktail(c) for c in cocktailQueries]
     drinks = cocktailDictFormat(cocktailList)
