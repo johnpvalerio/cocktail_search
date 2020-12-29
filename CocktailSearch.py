@@ -4,13 +4,21 @@ import json
 from resources.thecocktaildb import Cocktail, Api
 
 
+def outputJSON(drinkDict):
+    date = datetime.datetime.now()
+    date = date.strftime("%Y%m%d-%H%M%S")
+    with open('output/output-'+date+ '.json', 'w') as f:
+        json.dump(drinkDict, f, indent=4)
+    return
+
+
 def removeNone(drink):
     for key, val in list(drink.items()):
         if val is None:
             del drink[key]
 
 
-def display(cocktails):
+def cocktailDictFormat(cocktails):
     output = {}
     drinks = []
     for drink in cocktails:
@@ -23,27 +31,25 @@ def display(cocktails):
                  'alcoholic': drink.getIsAlcoholic(),
                  'glass': drink.glass,
                  'instructions': drink.getInstructions(),
-                 'thumb': drink.thumb,
+                 'thumbnail': drink.thumb,
                  'recipe': drink.getRecipes(),
-                 'imgAttr': drink.imgAttr,
+                 'imageAttribution': drink.imgAttr,
                  'video': drink.video,
-                 'imgSrc': drink.imgSrc,
+                 'imageSource': drink.imgSrc,
                  'creativeCommonsConfirmed': drink.getIsCreativeCC(),
                  'dateModified': drink.getDate()
                  }
-
         removeNone(entry)
         drinks.append(entry)
-    print(entry)
     output['drinks'] = drinks
     print(json.dumps(output, indent=4))
-    pass
+    return output
 
 
 def search(drink: dict):
     cocktail = Cocktail(drink)
     api = Api('1')
-    x = api.query(cocktail.getHint())
-    x = [Cocktail(c) for c in x]
-    print(x)
-    display(x)
+    cocktailQueries = api.query(cocktail.getHint())
+    cocktailList = [Cocktail(c) for c in cocktailQueries]
+    drinks = cocktailDictFormat(cocktailList)
+    outputJSON(drinks)
