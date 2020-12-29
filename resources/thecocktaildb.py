@@ -48,11 +48,9 @@ class Api:
             gla = hints['gla'] if 'gla' in hints else None
             temp = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
             keys = self.intersectKeys(*temp)
-            print(keys)
             output = [self.queryId(x) for x in keys]
         if not output:
             return None
-        print(output)
         return output
 
     @staticmethod
@@ -166,7 +164,7 @@ class Cocktail:
         :param cocktailDict: dict - attribute inputs
         """
         self.id = cocktailDict["idDrink"] if "idDrink" in cocktailDict else None
-        self.name = cocktailDict["strDrink"] if "strDrink" in cocktailDict else None
+        self.nameEN = cocktailDict["strDrink"] if "strDrink" in cocktailDict else None
         self.nameAlt = cocktailDict["strDrinkAlternate"] if "strDrinkAlternate" in cocktailDict else None
         self.nameES = cocktailDict["strDrinkES"] if "strDrinkES" in cocktailDict else None
         self.nameDE = cocktailDict["strDrinkDE"] if "strDrinkDE" in cocktailDict else None
@@ -179,7 +177,7 @@ class Cocktail:
         self.iba = cocktailDict["strIBA"] if "strIBA" in cocktailDict else None
         self.alcoholic = cocktailDict["strAlcoholic"] if "strAlcoholic" in cocktailDict else None
         self.glass = cocktailDict["strGlass"] if "strGlass" in cocktailDict else None
-        self.instructions = cocktailDict["strInstructions"] if "strInstructions" in cocktailDict else None
+        self.instructionsEN = cocktailDict["strInstructions"] if "strInstructions" in cocktailDict else None
         self.instructionsES = cocktailDict["strInstructionsES"] if "strInstructionsES" in cocktailDict else None
         self.instructionsDE = cocktailDict["strInstructionsDE"] if "strInstructionsDE" in cocktailDict else None
         self.instructionsFR = cocktailDict["strInstructionsFR"] if "strInstructionsFR" in cocktailDict else None
@@ -227,15 +225,18 @@ class Cocktail:
         """
         Gets most relevant attributes to find cocktail
         if id given, return id
-        else give dict of filters (name/ingredients/alcoholic/category/glass)
+        else give dict of filters (nameEN/ingredients/alcoholic/category/glass)
         :return: Dict[str, str] - param key, value
         """
         output = {}
+        # if id given, give ID as hint
         if self.id:
             output['id'] = self.id
+        # else give name, ingredients, alcoholic, category, glass as hints
+        # only include not None values
         else:
-            if self.name is not None:
-                output['name'] = self.name
+            if self.nameEN is not None:
+                output['name'] = self.nameEN
             ingrList = []
             for i in range(1, 15 + 1):
                 ingr = getattr(self, 'ingredient' + str(i))
@@ -252,54 +253,91 @@ class Cocktail:
         print('hint', output)
         return output
 
-    def getRecipes(self):
+    def getRecipes(self) -> List[Dict[str, str]]:
+        """
+        Groups ingredients and measurement together, returns as dict of dicts
+        :return: List[Dict] - List of Dict of ingredient and measurement
+        """
         output = []
         for i in range(1, 15 + 1):
-            # todo: maybe allow ingredient/drink to be none (just remove) and not stop complete entry
-            try:
-                if getattr(self, 'ingredient' + str(i)) is None:
-                    continue
-                elif getattr(self, 'measure' + str(i)) is None:
-                    continue
-                recipe = {'ingredient': getattr(self, 'ingredient' + str(i)),
-                          'measure:': getattr(self, 'measure' + str(i))}
-                output.append(recipe)
-            except AttributeError:
+            recipe = {}
+            if getattr(self, 'ingredient' + str(i)) is not None:
+                recipe['ingredient'] = getattr(self, 'ingredient' + str(i))
+            if getattr(self, 'measure' + str(i)) is not None:
+                recipe['measure'] = getattr(self, 'measure' + str(i))
+            # if no ingredient/measurement, skip
+            if not recipe:
                 continue
+            output.append(recipe)
         return output
 
-    def getGroupLanguage(self, attribute):
+    def getGroupLanguage(self, attribute: str) -> Dict[str, str]:
+        """
+        Groups given attribute (name/instructions) by language
+        :param attribute: str - "instructions" or "name"
+        :return: dict[str, str] - dict of language string code and translated string
+        """
         output = {}
-        languages = ['', 'ES', 'DE', 'FR', 'ZHHANS', 'ZHHANT']
+        languages = ['EN', 'ES', 'DE', 'FR', 'ZHHANS', 'ZHHANT']
         for _l in languages:
+            # skip if entry in language is missing
             if getattr(self, attribute + _l) is None:
                 continue
-            if _l == '':
-                output['en'] = getattr(self, attribute + _l)
-            elif _l[:2] == 'ZH':
+            # for ZH-HANS and ZH-HANT
+            if _l[:2] == 'ZH':
                 output[_l[:2] + '-' + _l[2:]] = getattr(self, attribute + _l)
+            # all other
             else:
                 output[_l.lower()] = getattr(self, attribute + _l)
         return output
 
-    def getInstructions(self):
+    def getInstructions(self) -> Dict[str, str]:
+        """
+        Helper function
+        Calls getGroupLanguage with "instructions" param
+        :return: Dict[str, str] - dict of language string code and translated string
+        """
         return self.getGroupLanguage('instructions')
 
-    def getNames(self):
+    def getNames(self) -> Dict[str, str]:
+        """
+        Helper function
+        Calls getGroupLanguage with "name" param
+        :return: Dict[str, str] - dict of language string code and translated string
+        """
         return self.getGroupLanguage('name')
 
-    def getDate(self):
+    def getDate(self) -> datetime:
+        """
+        Converts dateMod attribute to ISO 8601 EST timezone
+        :return: datetime - date in EST timezone
+        """
         if not self.dateMod:
             return
         date = datetime.datetime.strptime(self.dateMod, '%Y-%m-%d %H:%M:%S')
+        # EST: -4:00
+        date = date.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=-4)))
         return date.isoformat()
 
-    def getIsAlcoholic(self):
+    def getIsAlcoholic(self) -> Optional[bool]:
+        """
+        Returns bool of alcoholic attribute
+        alcoholic -> true
+        optional alcohol -> true
+        non alcoholic -> false
+        :return: bool - if attribute given, else return None
+        """
         if not self.alcoholic:
             return
-        return True if self.alcoholic in ['Alcoholic', 'Optional alcohol'] else False
+        return True if self.alcoholic.lower() in ['alcoholic', 'optional alcohol'] else False
 
-    def getIsCreativeCC(self):
+    def getIsCreativeCC(self) -> Optional[bool]:
+        """
+        Returns bool of creativeCC attribute
+        yes -> true
+        no -> false
+        :return: bool - if attribute given, else return None
+        """
         if not self.creativeCC:
             return
-        return True if self.creativeCC == 'Yes' else False
+        return True if self.creativeCC.lower() == 'yes' else False
