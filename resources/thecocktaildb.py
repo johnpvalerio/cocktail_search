@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 import requests
 
 API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1/'
-# API_KEY = ''
+DEFAULT_API_KEY = '1'
 
 
 class Api:
@@ -23,12 +23,11 @@ class Api:
     list categories/glasses/ingredients/alcoholic -> list
     """
 
-    def __init__(self, key: str = '1') -> None:
+    def __init__(self, key: str = DEFAULT_API_KEY) -> None:
         """
         API constructor
         :param key: str - API key, default 1 (test API key)
         """
-        # global API_KEY
         self._keyApi = key
 
     def query(self, hints: Dict[str, str] = None) -> List[Dict[str, list]]:
@@ -64,14 +63,17 @@ class Api:
             data = requests.get(url, params={key: payload})
             data.raise_for_status()
         except requests.exceptions.HTTPError:
+            print('Bad key')
             sys.exit(1)
         if data.text == '':
+            print('No return')
             sys.exit(1)
         data = data.json()
         try:
             data['drinks']
             data['drinks'][0]
         except TypeError:
+            print('Bad ID')
             sys.exit(1)
         return data['drinks']
 
@@ -108,11 +110,15 @@ class Api:
             if f0:
                 cocktails.append(f0)
         if ingredients:
-            # todo: if premium key, use batched ingredients function
-            for ingr in ingredients:
-                f1 = self.queryApi('filter', 'i', ingr)
+            if self._keyApi == DEFAULT_API_KEY:
+                f1 = self.queryApi('filter', 'i', ingredients)
                 if f1:
                     cocktails.append(f1)
+            else:
+                for ingr in ingredients:
+                    f1 = self.queryApi('filter', 'i', ingr)
+                    if f1:
+                        cocktails.append(f1)
         if alcoholic:
             f2 = self.queryApi('filter', 'a', alcoholic)
             if f2:
