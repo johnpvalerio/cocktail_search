@@ -1,6 +1,6 @@
 import datetime
 import sys
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
 import requests
 
@@ -9,19 +9,6 @@ DEFAULT_API_KEY = '1'
 
 
 class Api:
-    """
-    API methods:
-    name -> list of cocktails
-        first letter -> list of cocktails
-    ingredient name -> ingredient info
-    cocktail id -> full cocktail info
-        <random> -> full cocktail info
-    ingredient name -> cocktail
-    alcoholic yes/no -> cocktail list
-    category -> cocktail list
-    glass -> cocktail list
-    list categories/glasses/ingredients/alcoholic -> list
-    """
 
     def __init__(self, key: str = DEFAULT_API_KEY) -> None:
         """
@@ -30,7 +17,7 @@ class Api:
         """
         self._keyApi = key
 
-    def query(self, hints: Dict[str, str] = None) -> List[Dict[str, list]]:
+    def query(self, hints: Dict[str, str] = None) -> Optional[List[Dict[str, Optional[str]]]]:
         """
         Query manager, calls desired query from argument given
         :param hints: Dict[str, str] - cocktail hints
@@ -57,26 +44,6 @@ class Api:
         print(output)
         return output
 
-    def queryApi(self, searchType: str, key, payload):
-        try:
-            url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
-            data = requests.get(url, params={key: payload})
-            data.raise_for_status()
-        except requests.exceptions.HTTPError:
-            print('Bad key')
-            sys.exit(1)
-        if data.text == '':
-            print('No return')
-            sys.exit(1)
-        data = data.json()
-        try:
-            data['drinks']
-            data['drinks'][0]
-        except TypeError:
-            print('Bad ID')
-            sys.exit(1)
-        return data['drinks']
-
     @staticmethod
     def intersectKeys(*cocktails: List[Dict[str, str]]) -> List[str]:
         """
@@ -88,45 +55,84 @@ class Api:
         for _c in cocktails:
             keys1 = set(x['idDrink'] for x in _c)
             keys.append(keys1)
+        # No keys given
         if not keys:
             return []
         return list(set.intersection(*keys))
+
+    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Dict[str, Optional[str]]]:
+        """
+        Queries the API with given args
+        :param searchType: str - lookup/filter
+        :param key: str - s/i/a/c/g
+        :param payload: str - param payload (public test key)
+                        list - param payload (premium key & ingredients call)
+        :return: Dict - drink entry
+        """
+        try:
+            url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
+            data = requests.get(url, params={key: payload})
+            data.raise_for_status()
+        # Response code not 200
+        except requests.exceptions.HTTPError:
+            print('Bad key')
+            sys.exit(1)
+        # No response
+        if data.text == '':
+            print('No return')
+            sys.exit(1)
+        data = data.json()
+        try:
+            data['drinks']
+            data['drinks'][0]
+        # Response gave None
+        except TypeError:
+            print('Bad values')
+            sys.exit(1)
+        return data['drinks']
 
     def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
                      glass: str = None) -> List[List[Dict[str, str]]]:
         """
         Fetch list of cocktails with cocktail filters from API
-        :param name:
+        :param name: str - cocktail name
         :param alcoholic: str - Alcoholic, Non Alcoholic, or Optional alcohol
         :param category: str - drink category: Ordinary Drink, Cocktail, Cocoa, etc
         :param glass: str - glass type: Highball glass, Cocktail glass, etc
         :param ingredients: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
-        :return: None
+        :return: List[Dict] - List of drinks Dict
         """
-
+        # holds all drink query responses
         cocktails = []
+        # get drinks from name
         if name:
             f0 = self.queryApi('search', 's', name)
             if f0:
                 cocktails.append(f0)
+        # get drinks from ingredients
         if ingredients:
+            # if premium key, use multi-ingredient filter
             if self._keyApi == DEFAULT_API_KEY:
                 f1 = self.queryApi('filter', 'i', ingredients)
                 if f1:
                     cocktails.append(f1)
+            # iterate through ingredients
             else:
                 for ingr in ingredients:
                     f1 = self.queryApi('filter', 'i', ingr)
                     if f1:
                         cocktails.append(f1)
+        # get drinks from alcohol
         if alcoholic:
             f2 = self.queryApi('filter', 'a', alcoholic)
             if f2:
                 cocktails.append(f2)
+        # get drinks from category
         if category:
             f3 = self.queryApi('filter', 'c', category)
             if f3:
                 cocktails.append(f3)
+        # get drinks from class
         if glass:
             f4 = self.queryApi('filter', 'g', glass)
             if f4:
