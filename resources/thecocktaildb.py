@@ -1,10 +1,11 @@
 import datetime
+import sys
 from typing import List, Dict, Optional
 
 import requests
 
 API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1/'
-API_KEY = ''
+# API_KEY = ''
 
 
 class Api:
@@ -27,8 +28,8 @@ class Api:
         API constructor
         :param key: str - API key, default 1 (test API key)
         """
-        global API_KEY
-        API_KEY = key
+        # global API_KEY
+        self._keyApi = key
 
     def query(self, hints: Dict[str, str] = None) -> List[Dict[str, list]]:
         """
@@ -38,7 +39,9 @@ class Api:
         """
         output = []
         if 'id' in hints:
-            output = [self.queryId(hints['id'])]
+            qid = self.queryApi('lookup', 'i', hints['id'])
+            if qid:
+                output = [qid]
         else:
             name = hints['name'] if 'name' in hints else None
 
@@ -48,24 +51,29 @@ class Api:
             gla = hints['gla'] if 'gla' in hints else None
             temp = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
             keys = self.intersectKeys(*temp)
-            output = [self.queryId(x) for x in keys]
+            output = [self.queryApi('lookup', 'i', x) for x in keys]
         if not output:
             return None
+        output = [x[0] for x in output]
+        print(output)
         return output
 
-    @staticmethod
-    def queryId(cid: str) -> Dict[str, list]:
-        """
-        Fetch at most 1 cocktail with cocktail ID from API
-        :param cid: str - cocktail ID
-        :return: None
-        """
-        url = API_BASE_URL + API_KEY + '/lookup.php'
-        data = requests.get(url, params={'i': cid})
+    def queryApi(self, searchType: str, key, payload):
+        try:
+            url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
+            data = requests.get(url, params={key: payload})
+            data.raise_for_status()
+        except requests.exceptions.HTTPError:
+            sys.exit(1)
         if data.text == '':
-            return None
+            sys.exit(1)
         data = data.json()
-        return data['drinks'][0]
+        try:
+            data['drinks']
+            data['drinks'][0]
+        except TypeError:
+            sys.exit(1)
+        return data['drinks']
 
     @staticmethod
     def intersectKeys(*cocktails: List[Dict[str, str]]) -> List[str]:
@@ -82,8 +90,7 @@ class Api:
             return []
         return list(set.intersection(*keys))
 
-    @staticmethod
-    def queryFilters(name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
+    def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
                      glass: str = None) -> List[List[Dict[str, str]]]:
         """
         Fetch list of cocktails with cocktail filters from API
@@ -96,62 +103,28 @@ class Api:
         """
 
         cocktails = []
-
-        def qFilter(payload, _type):
-            """
-            Inner function to query API database, queries ingredients, categories, glass, alcoholic
-            :param payload: string - item filtered (ingredients, categories, glass, alcoholic)
-            :param _type: string - API query filter param (i, a, c, g)
-            :return:
-            """
-            url = API_BASE_URL + API_KEY + '/filter.php'
-            data = requests.get(url, params={_type: payload})
-            # if input not in db
-            if data.text == '':
-                return None
-            data = data.json()
-            return data['drinks']
-
-        def qName(name: str = None) -> Optional[List[Dict[str, str]]]:
-            """
-            Fetch list of cocktails with cocktail name from API
-            :param name: str - cocktail name
-            :return:
-            """
-            url = API_BASE_URL + API_KEY + '/search.php'
-            data = requests.get(url, params={'s': name})
-            if data.text == '':
-                return None
-            data = data.json()
-            return data['drinks']
-
         if name:
-            f0 = qName(name)
+            f0 = self.queryApi('search', 's', name)
             if f0:
-                print('name', len(f0), f0)
                 cocktails.append(f0)
         if ingredients:
             # todo: if premium key, use batched ingredients function
             for ingr in ingredients:
-                f1 = qFilter(ingr, 'i')
+                f1 = self.queryApi('filter', 'i', ingr)
                 if f1:
-                    print(ingr, len(f1), f1)
                     cocktails.append(f1)
         if alcoholic:
-            f2 = qFilter(alcoholic, 'a')
+            f2 = self.queryApi('filter', 'a', alcoholic)
             if f2:
                 cocktails.append(f2)
-                print('alc', len(f2), f2)
         if category:
-            f3 = qFilter(category, 'c')
+            f3 = self.queryApi('filter', 'c', category)
             if f3:
                 cocktails.append(f3)
-                print('cat', len(f3), f3)
         if glass:
-            f4 = qFilter(glass, 'g')
+            f4 = self.queryApi('filter', 'g', glass)
             if f4:
                 cocktails.append(f4)
-                print('glass', len(f4), f4)
 
         return cocktails
 
