@@ -1,24 +1,48 @@
 import datetime
 import json
+from typing import Dict, Union, List, Optional
 
 from resources.thecocktaildb import Cocktail, Api
 
 
-def outputJSON(drinkDict):
+def outputJSON(drinkDict: Dict[str, List[Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]]) -> None:
+    """
+    Creates JSON file from dict given
+    :param drinkDict: dict - drink entries
+    :return:
+    """
+    # use date timestamp as unique identifier for file name
     date = datetime.datetime.now()
     date = date.strftime("%Y%m%d-%H%M%S")
-    with open('output/output-'+date+ '.json', 'w') as f:
+    with open('output/output-' + date + '.json', 'w') as f:
         json.dump(drinkDict, f, indent=4)
     return
 
 
-def removeNone(drink):
-    for key, val in list(drink.items()):
+def removeNone(drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]) -> None:
+    """
+    Iterates through dict and removes entries with None values in-place
+    :param drinkDict: dict - drink entry
+    :return: None
+    """
+    for key, val in list(drinkDict.items()):
         if val is None:
-            del drink[key]
+            del drinkDict[key]
+    return
 
 
-def cocktailDictFormat(cocktails):
+def cocktailDictFormat(cocktails: List[Cocktail]) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]]:
+    """
+    Create dict output from cocktail info with proper format
+    format:
+        ingredients/measure - List of dicts
+        translated value(name/instruction) - dicts by language
+        alcoholic/creativeCommonsConfirmed - bool
+        date - ISO 8601 EST timezone
+        string - if none of the above and not None
+    :param cocktails: List[Cocktail] - List of cocktail objects
+    :return: Dict[str, dict] - dict of drink
+    """
     output = {}
     drinks = []
     for drink in cocktails:
@@ -46,10 +70,20 @@ def cocktailDictFormat(cocktails):
     return output
 
 
-def search(drink: dict, key: str):
-    cocktail = Cocktail(drink)
-    api = Api(key)
+def search(drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], List[Dict[str, str]]]]], keyStr: str = '1') -> None:
+    """
+    Starts search query then creates final output
+    :param drinkDict: dict - drink entry
+    :param keyStr: API key, default "1"
+    :return: None
+    """
+    api = Api(keyStr)
+    cocktail = Cocktail(drinkDict)
+    # query API with cocktail object hints (ID/name/ingredients/alcoholic/category/glass)
     cocktailQueries = api.query(cocktail.getHint())
     cocktailList = [Cocktail(c) for c in cocktailQueries]
+    # create cocktail in proper format
     drinks = cocktailDictFormat(cocktailList)
+    # write to file
     outputJSON(drinks)
+    return None
