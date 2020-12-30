@@ -1,5 +1,7 @@
 import sys
 
+import requests
+
 import CocktailSearch
 import json
 
@@ -23,9 +25,19 @@ def main() -> None:
                 cInput = json.load(f)['drinks']
                 # loop through drinks in dict
                 for drink in cInput:
-                    CocktailSearch.search(drink, key)
+                    try:
+                        CocktailSearch.search(drink, key)
+                    # no results found, try next drink if available
+                    except TypeError as e:
+                        print(e)
+                        continue
+        # File error, try next if available
         except FileNotFoundError:
             continue
+        # HTTP error, bad key, stop
+        except requests.exceptions.HTTPError as e_:
+            print(e_, 'with API key:', key)
+            sys.exit(1)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,4 @@
 import datetime
-import sys
 from typing import List, Dict, Optional, Union
 
 import requests
@@ -17,31 +16,35 @@ class Api:
         """
         self._keyApi = key
 
-    def query(self, hints: Dict[str, str] = None) -> Optional[List[Dict[str, Optional[str]]]]:
+    def query(self, hints: Dict[str, str] = None) -> List[Dict[str, Optional[str]]]:
         """
         Query manager, calls desired query from argument given
         :param hints: Dict[str, str] - cocktail hints
-        :return: None
+        :return: List[Dict] - List of drink dictionary
         """
         output = []
+        # query ID immediately
         if 'id' in hints:
             qid = self.queryApi('lookup', 'i', hints['id'])
             if qid:
                 output = [qid]
+        # query filters then find common entries: name/ingredients/alcohol/category/glass
         else:
             name = hints['name'] if 'name' in hints else None
-
             ing = hints['ing'] if 'ing' in hints else None
             alc = hints['alc'] if 'alc' in hints else None
             cat = hints['cat'] if 'cat' in hints else None
             gla = hints['gla'] if 'gla' in hints else None
-            temp = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
-            keys = self.intersectKeys(*temp)
-            output = [self.queryApi('lookup', 'i', x) for x in keys]
+
+            qResults = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
+            commonKeys = self.intersectKeys(*qResults)
+            # get cocktail detail for each entry
+            output = [self.queryApi('lookup', 'i', x) for x in commonKeys]
+        # no ID or no hint, raise error and skip this drink query input
         if not output:
-            return None
+            raise TypeError("Bad drink ID")
+        # get each first entry from list (unpack dict drinks from list of 1 entry)
         output = [x[0] for x in output]
-        print(output)
         return output
 
     @staticmethod
@@ -55,40 +58,39 @@ class Api:
         for _c in cocktails:
             keys1 = set(x['idDrink'] for x in _c)
             keys.append(keys1)
-        # No keys given
+        # No keys found, may be triggered when drink input is empty
         if not keys:
-            return []
+            raise TypeError("Query results 0")
         return list(set.intersection(*keys))
 
-    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Dict[str, Optional[str]]]:
+    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Optional[Dict[str, Optional[str]]]]:
         """
         Queries the API with given args
         :param searchType: str - lookup/filter
         :param key: str - s/i/a/c/g
         :param payload: str - param payload (public test key)
                         list - param payload (premium key & ingredients call)
-        :return: Dict - drink entry
+        :return: List[dict] - list of drink entry
+                              list empty if error
         """
         try:
             url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
             data = requests.get(url, params={key: payload})
             data.raise_for_status()
         # Response code not 200
-        except requests.exceptions.HTTPError:
-            print('Bad key')
-            sys.exit(1)
-        # No response
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError("Bad API key") from e
+        # Response empty/not found, may be triggered when using public API key
         if data.text == '':
-            print('No return')
-            sys.exit(1)
+            return []
         data = data.json()
+        # check if theres contents in drinks
         try:
             data['drinks']
             data['drinks'][0]
         # Response gave None
         except TypeError:
-            print('Bad values')
-            sys.exit(1)
+            return []
         return data['drinks']
 
     def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
