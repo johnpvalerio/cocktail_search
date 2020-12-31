@@ -42,7 +42,7 @@ class Api:
             output = [self.queryApi('lookup', 'i', x) for x in commonKeys]
         # no ID or no hint, raise error and skip this drink query input
         if not output:
-            raise TypeError("Bad drink ID")
+            raise TypeError("Query results 0 - No entry found with given requirements")
         # get each first entry from list (unpack dict drinks from list of 1 entry)
         output = [x[0] for x in output]
         return output
@@ -60,7 +60,7 @@ class Api:
             keys.append(keys1)
         # No keys found, may be triggered when drink input is empty
         if not keys:
-            raise TypeError("Query results 0")
+            raise TypeError("Query results 0 - No valid hints given")
         return list(set.intersection(*keys))
 
     def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Optional[Dict[str, Optional[str]]]]:
@@ -82,7 +82,7 @@ class Api:
             raise requests.exceptions.HTTPError("Bad API key") from e
         # Response empty/not found, may be triggered when using public API key
         if data.text == '':
-            return []
+            raise TypeError('Query results 0 - No info found')
         data = data.json()
         # check if theres contents in drinks
         try:
@@ -90,7 +90,7 @@ class Api:
             data['drinks'][0]
         # Response gave None
         except TypeError:
-            return []
+            raise TypeError('Query results 0 - Info not found in database')
         return data['drinks']
 
     def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
@@ -237,7 +237,6 @@ class Cocktail:
                 output['cat'] = self.category
             if self.glass is not None:
                 output['gla'] = self.glass
-        print('hint', output)
         return output
 
     def getRecipes(self) -> List[Dict[str, str]]:
