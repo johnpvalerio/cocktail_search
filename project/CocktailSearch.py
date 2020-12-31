@@ -14,7 +14,7 @@ def outputJSON(drinkDict: Dict[str, List[Dict[str, Union[str, bool, Dict[str, st
     # use date timestamp as unique identifier for file name
     date = datetime.datetime.now()
     date = date.strftime("%Y%m%d-%H%M%S%f")
-    fpath = 'output/output-' + date + '.json'
+    fpath = '../output/output-' + date + '.json'
     with open(fpath, 'w') as f:
         json.dump(drinkDict, f, indent=4)
     return
