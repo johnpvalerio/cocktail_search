@@ -14,8 +14,12 @@ def main() -> None:
     :return: None
     """
     # get API key from file
-    with open('../project/resources/config.json') as f:
-        key = json.load(f)['API_KEY']
+    try:
+        with open('../project/resources/config.json') as f:
+            key = json.load(f)['API_KEY']
+    except (json.decoder.JSONDecodeError, FileNotFoundError) as e:
+        print('File error in config.json', e.msg)
+        sys.exit(1)
     paths = sys.argv[1:] if len(sys.argv) > 1 else ['../example/input.json']
     # loop through paths
     for fpath in paths:
@@ -32,8 +36,8 @@ def main() -> None:
                         print(e)
                         continue
         # File error, try next if available
-        except FileNotFoundError:
-            print('File error', fpath)
+        except (json.decoder.JSONDecodeError, FileNotFoundError) as e:
+            print('File error', fpath, e.msg)
             continue
         # HTTP error, bad key, stop
         except requests.exceptions.HTTPError as e_:
