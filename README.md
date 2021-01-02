@@ -7,7 +7,7 @@ python -m pip install 'git+https://github.com/johnpvalerio/cocktail_search.git'
 ```
 ### Requirements
 - Python 3
-- [Requests](https://requests.readthedocs.io/en/master/user/install/#install) - HTTP library
+- [Requests >= 2.25.1](https://requests.readthedocs.io/en/master/user/install/#install) - HTTP library
 ## Setup
 In order to get the full access to [TheCocktailDB's databse](https://www.thecocktaildb.com/api.php) you will need
 to be a paid Patreon supporter for API production key. 

@@ -4,11 +4,14 @@ from typing import Dict, Union, List, Optional
 
 from resources.thecocktaildb import Cocktail, Api
 
+# typing reference
+DrinkFormatted = Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]
 
-def outputJSON(drinkDict: Dict[str, List[Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]]) -> None:
+
+def outputJSON(drinkDict: Dict[str, List[DrinkFormatted]]) -> None:
     """
     Creates JSON file from dict given
-    :param drinkDict: dict - drink entries
+    :param drinkDict: Dict[str, List[Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]] - drink entries
     :return:
     """
     # use date timestamp as unique identifier for file name
@@ -23,7 +26,7 @@ def outputJSON(drinkDict: Dict[str, List[Dict[str, Union[str, bool, Dict[str, st
 def removeNone(drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]) -> None:
     """
     Iterates through dict and removes entries with None values in-place
-    :param drinkDict: dict - drink entry
+    :param drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], List[Dict[str, str]]]]] - drink entry
     :return: None
     """
     for key, val in list(drinkDict.items()):
@@ -32,7 +35,7 @@ def removeNone(drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], Li
     return
 
 
-def cocktailDictFormat(cocktails: List[Cocktail]) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]]:
+def cocktailDictFormat(cocktails: List[Cocktail]) -> Dict[str, List[DrinkFormatted]]:
     """
     Create dict output from cocktail info with proper format
     format:
@@ -42,7 +45,7 @@ def cocktailDictFormat(cocktails: List[Cocktail]) -> Dict[str, List[Dict[str, Un
         date - ISO 8601 EST timezone
         string - if none of the above and not None
     :param cocktails: List[Cocktail] - List of cocktail objects
-    :return: Dict[str, dict] - dict of drink
+    :return: Dict[str, List[Dict[str, Union[str, bool, Dict[str, str], List[Dict[str, str]]]]]] - dict of drink
     """
     output = {}
     drinks = []
@@ -74,8 +77,8 @@ def cocktailDictFormat(cocktails: List[Cocktail]) -> Dict[str, List[Dict[str, Un
 def search(drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], List[Dict[str, str]]]]], keyStr: str = '1') -> None:
     """
     Starts search query then creates final output
-    :param drinkDict: dict - drink entry
-    :param keyStr: API key, default "1"
+    :param drinkDict: Dict[str, Optional[Union[str, bool, Dict[str, str], List[Dict[str, str]]]]] - drink entry
+    :param keyStr: str - API key, default "1"
     :return: None
     """
     api = Api(keyStr)

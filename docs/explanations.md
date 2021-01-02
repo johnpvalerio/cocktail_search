@@ -32,8 +32,8 @@ From a file, it will loop through each drink entry to be processed.
       category `"Ordinary Drinks"` does not include `"Long Island Iced Tea"`.
   - Info not found in database - queried input not in database
     
-### CocktailSearch
-`CocktailSearch.py` initiates the search and output of the queries in a formatted result.\
+### cocktailsearch
+`cocktailsearch.py` initiates the search and output of the queries in a formatted result.\
 It initiates `Api` and `Cocktail` with corresponding key and dict. Query the API with the determining hints from the cocktail object.
 Gather all queried results then process it to be formatted and in a dict. \
 Format:

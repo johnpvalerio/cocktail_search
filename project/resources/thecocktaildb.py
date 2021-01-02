@@ -3,12 +3,17 @@ from typing import List, Dict, Optional, Union
 
 import requests
 
-API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1/'
-DEFAULT_API_KEY = '1'
+API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1/'  # API URL
+DEFAULT_API_KEY = '1'                       # API key
+
+# typing reference
+DrinkQueried = Dict[str, Optional[str]]
 
 
 class Api:
-
+    """
+    Class for querying thecocktaildb API.
+    """
     def __init__(self, key: str = DEFAULT_API_KEY) -> None:
         """
         API constructor
@@ -16,11 +21,11 @@ class Api:
         """
         self._keyApi = key
 
-    def query(self, hints: Dict[str, str] = None) -> List[Dict[str, Optional[str]]]:
+    def query(self, hints: Dict[str, str] = None) -> List[DrinkQueried]:
         """
         Query manager, calls desired query from argument given
         :param hints: Dict[str, str] - cocktail hints
-        :return: List[Dict] - List of drink dictionary
+        :return: List[Dict[str, Optional[str]]] - List of drink dictionary
         """
         output = []
         # query ID immediately
@@ -48,11 +53,11 @@ class Api:
         return output
 
     @staticmethod
-    def intersectKeys(*cocktails: List[Dict[str, str]]) -> List[str]:
+    def intersectKeys(*cocktails: List[DrinkQueried]) -> List[str]:
         """
         From given cocktail dicts, finds common idDrink strings
-        :param cocktails: List(Dict) - Lists of cocktail dicts
-        :return: List(str) - List of idDrink strings
+        :param cocktails: List[Dict[str, Optional[str]]] - Lists of cocktail dicts
+        :return: List[str] - List of idDrink strings
         """
         keys = []
         for _c in cocktails:
@@ -63,15 +68,15 @@ class Api:
             raise TypeError("Query results 0 - No valid hints given")
         return list(set.intersection(*keys))
 
-    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Optional[Dict[str, Optional[str]]]]:
+    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Optional[DrinkQueried]]:
         """
         Queries the API with given args
         :param searchType: str - lookup/filter
         :param key: str - s/i/a/c/g
-        :param payload: str - param payload (public test key)
+        :param payload: str - param payload (public test key call)
                         list - param payload (premium key & ingredients call)
-        :return: List[dict] - list of drink entry
-                              list empty if error
+        :return: List[Optional[Dict[str, Optional[str]]]] - list of drink entry
+                                                            list empty if error
         """
         try:
             url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
@@ -94,7 +99,7 @@ class Api:
         return data['drinks']
 
     def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
-                     glass: str = None) -> List[List[Dict[str, str]]]:
+                     glass: str = None) -> List[List[DrinkQueried]]:
         """
         Fetch list of cocktails with cocktail filters from API
         :param name: str - cocktail name
@@ -102,7 +107,7 @@ class Api:
         :param category: str - drink category: Ordinary Drink, Cocktail, Cocoa, etc
         :param glass: str - glass type: Highball glass, Cocktail glass, etc
         :param ingredients: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
-        :return: List[Dict] - List of drinks Dict
+        :return: List[List[Dict[str, str]]] - List containing the List of drinks Dict queried
         """
         # holds all drink query responses
         cocktails = []
@@ -144,11 +149,14 @@ class Api:
 
 
 class Cocktail:
+    """
+    Cocktail class for accessing cocktail information attributes
+    """
     def __init__(self, cocktailDict: Dict[str, str]) -> None:
         """
         Cocktail constructor
         If not in dict, set to None
-        :param cocktailDict: dict - attribute inputs
+        :param cocktailDict: Dict[str, str] - attribute inputs
         """
         self.id = cocktailDict["idDrink"] if "idDrink" in cocktailDict else None
         self.nameEN = cocktailDict["strDrink"] if "strDrink" in cocktailDict else None
@@ -213,7 +221,7 @@ class Cocktail:
         Gets most relevant attributes to find cocktail
         if id given, return id
         else give dict of filters (nameEN/ingredients/alcoholic/category/glass)
-        :return: Dict[str, str] - param key, value
+        :return: Dict[str, str] - param key (name, ing, alc, cat, gla), corresponding attribute value
         """
         output = {}
         # if id given, give ID as hint
@@ -242,7 +250,9 @@ class Cocktail:
     def getRecipes(self) -> List[Dict[str, str]]:
         """
         Groups ingredients and measurement together, returns as dict of dicts
-        :return: List[Dict] - List of Dict of ingredient and measurement
+        :return: List[Dict[str, str]] - List of Dict of ingredient and measurement
+                                    ex: [{"ingredient": "Vodka",
+                                          "measure": "1 oz "}, {...}]
         """
         output = []
         for i in range(1, 15 + 1):
@@ -261,7 +271,8 @@ class Cocktail:
         """
         Groups given attribute (name/instructions) by language
         :param attribute: str - "instructions" or "name"
-        :return: dict[str, str] - dict of language string code and translated string
+        :return: Dict[str, str] - dict of language string code and translated string
+                                    ex: {"en": "Long Island Iced Tea"}
         """
         output = {}
         languages = ['EN', 'ES', 'DE', 'FR', 'ZHHANS', 'ZHHANT']
@@ -293,10 +304,11 @@ class Cocktail:
         """
         return self.getGroupLanguage('name')
 
-    def getDate(self) -> datetime:
+    def getDate(self) -> Optional[str]:
         """
         Converts dateMod attribute to ISO 8601 EST timezone
-        :return: datetime - date in EST timezone
+        :return: datetime - string date in EST timezone
+                            None if no self.dateMod attribute given
         """
         if not self.dateMod:
             return

@@ -2,7 +2,7 @@ import sys
 
 import requests
 
-import CocktailSearch
+import cocktailsearch
 import json
 
 
@@ -30,7 +30,7 @@ def main() -> None:
                 # loop through drinks in dict
                 for drink in cInput:
                     try:
-                        CocktailSearch.search(drink, key)
+                        cocktailsearch.search(drink, key)
                     # no results found, try next drink if available
                     except TypeError as e:
                         print(e)
