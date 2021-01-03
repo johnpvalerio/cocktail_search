@@ -93,8 +93,7 @@ Output results in a JSON file. Files are made in the `/output` folder and named 
 With given file input as a dict, create a `Cocktail` object with information given as attributes.
 Creating hints uses the most relevant attributes in order to best query a cocktail. \
 Hint output:
-- id - the drink ID is enough to isolate the query to 1 drink, or
-- name, ingredients, alcohol, category, glass - use these information to find common drink between all requirements.
+- `id`, `name`, `ingredients`, `alcohol`, `category`, `glass` - use these information to find common drink between all requirements.
 
 For the final output, we need to provide drink information in a specific format. `Cocktail` provides getters to access them.
 - `getNames()`/`getInstructions()` both uses `getGroupLanguage()` in order to group attributes by languages (EN/ES/DE/FR/ZH-HANS/ZH-HANT) as a dict.
@@ -143,9 +142,13 @@ With given string as API key in the constructor, queries the API database. API k
 
 When calling `query()`, it acts as a function manager to best find the drink.
 
-- If given drink's `id`, calling `queryApi()` to directly call the API to yield 1 result, or
-- attempt to find best matching drink with given requirements (hints) with `queryFilters()`:
-  name, ingredients, alcohol, category, glass.\
-Call the API to get drinks with each of these requirements (if given), then compare each queried drinks results and select
+1. If given drink's `id` or `name`, calling `queryApi()` will directly call the API to yield full details of the drink
+   1. If `id` is present, use the single result as a base and check remaining hints (`name`, `ingerdients`, `category`, `glass`, `alcoholic`)
+      given matches.
+   2. if `name` is present, use the one, or many results as a base and check remaining hints (`ingerdients`, `category`, `glass`, `alcoholic`)
+      given matches.
+2. If `id` or `name` is not present, attempt to find best matching drink with given requirements (hints) with `queryFilters()`:
+  `ingredients`, `alcohol`, `category`, `glass`.\
+3. Call the API to get **shortened** drink information with each of these requirements, then compare each queried drinks results and select
   only the ones common in all queries with `intersectKeys()`.\
-  Call the API with those common results to get their full information details.
+   1. Call the API with those common results to get their **full** information details.
