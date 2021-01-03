@@ -4,16 +4,18 @@ from typing import List, Dict, Optional, Union
 import requests
 
 API_BASE_URL = 'http://www.thecocktaildb.com/api/json/v1/'  # API URL
-DEFAULT_API_KEY = '1'                       # API key
+DEFAULT_API_KEY = '1'  # API key
 
 # typing reference
 DrinkQueried = Dict[str, Optional[str]]
+Hints = Dict[str, Union[str, List[str]]]
 
 
 class Api:
     """
     Class for querying thecocktaildb API.
     """
+
     def __init__(self, key: str = DEFAULT_API_KEY) -> None:
         """
         API constructor
@@ -21,13 +23,18 @@ class Api:
         """
         self._keyApi = key
 
-    def query(self, hints: Dict[str, str] = None) -> List[DrinkQueried]:
+    def query(self, hints: Hints = None) -> List[DrinkQueried]:
         """
         Query manager, calls desired query from argument given
-        :param hints: Dict[str, str] - cocktail hints
+        :param hints: Dict[str, Union[str, List[str]]] - cocktail hints
         :return: List[Dict[str, Optional[str]]] - List of drink dictionary
         """
-        output = []
+        id_ = hints['id'] if 'id' in hints else None
+        name = hints['name'] if 'name' in hints else None
+        ing = hints['ing'] if 'ing' in hints else None
+        alc = hints['alc'] if 'alc' in hints else None
+        cat = hints['cat'] if 'cat' in hints else None
+        gla = hints['gla'] if 'gla' in hints else None
         # Check if any hints given
         if not hints:
             raise TypeError("Query results 0 - No hints given")
@@ -36,27 +43,85 @@ class Api:
             raise TypeError("Query results 0 - Hints given \"\"")
         if 'ing' in hints and not all(hints['ing']):
             raise TypeError("Query results 0 - Hints given \"\"")
-        # query ID immediately
-        if 'id' in hints:
-            qid = self.queryApi('lookup', 'i', hints['id'])
-            if qid:
-                output = [qid]
-        # query filters then find common entries: name/ingredients/alcohol/category/glass
+
+        # make ID the main query to cross reference
+        if id_:
+            mainQuery = self.queryApi('lookup', 'i', id_)
+            del hints['id']
+            output = self.filterDrink(mainQuery, hints)
+        # make name the main query to cross reference
+        elif name:
+            mainQuery = self.queryApi('search', 's', name)
+            del hints['name']
+            output = self.filterDrink(mainQuery, hints)
+        # query filters then find common entries: ingredients/alcohol/category/glass
         else:
-            name = hints['name'] if 'name' in hints else None
-            ing = hints['ing'] if 'ing' in hints else None
-            alc = hints['alc'] if 'alc' in hints else None
-            cat = hints['cat'] if 'cat' in hints else None
-            gla = hints['gla'] if 'gla' in hints else None
-            qResults = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
+            qResults = self.queryFilters(ingredients=ing, alcoholic=alc, category=cat, glass=gla)
             commonKeys = self.intersectKeys(*qResults)
             # get cocktail detail for each entry
             output = [self.queryApi('lookup', 'i', x) for x in commonKeys]
+            output = [x[0] for x in output]
         # no ID or no hint, raise error and skip this drink query input
         if not output:
             raise TypeError("Query results 0 - No entry found with given requirements")
-        # get each first entry from list (unpack dict drinks from list of 1 entry)
-        output = [x[0] for x in output]
+
+        return output
+
+    @staticmethod
+    def filterDrink(mainDrinks: List[DrinkQueried], filterChecks: Hints) -> List[DrinkQueried]:
+        """
+        Finds drinks from mainDrinks with common details as given filterCheck
+        :param mainDrinks: List[Dict[str, Optional[str]]] - List of drinks to iterate through, remove drink entry if not needed.
+        :param filterChecks: Dict[str, Optional[str, List[str]]] - Dict of hints to find in common
+        :return:
+        """
+        output = []
+        # iterate through drinks (when querying name, multiple drinks are given possibly)
+        for drink in mainDrinks:
+            toSkip = False
+            # go through filter hints
+            # if hint not found but available, mark to skip drink entry for output
+            for checkKey, checkVal in filterChecks.items():
+                # check name match
+                if checkKey == 'name':
+                    if drink['strDrink'].upper() != checkVal.upper():
+                        toSkip = True
+                        break
+                # check alcohol match
+                if checkKey == 'alc':
+                    if drink['strAlcoholic'].upper() != checkVal.upper():
+                        toSkip = True
+                        break
+                # check glass match
+                if checkKey == 'gla':
+                    if drink['strGlass'].upper() != checkVal.upper():
+                        toSkip = True
+                        break
+                # check category match
+                if checkKey == 'cat':
+                    if drink['strCategory'].upper() != checkVal.upper():
+                        toSkip = True
+                        break
+                # check ingredient match
+                if checkKey == 'ing':
+                    # checkVal is a list of str ingredients
+                    # iterate through ingredients
+                    for ingredientEntry in checkVal:
+                        ingList = []
+                        # check ingredient list of drink [1-15]
+                        for i in range(1, 15 + 1):
+                            if not drink["strIngredient" + str(i)]:
+                                break
+                            ingList.append(drink["strIngredient" + str(i)].upper())
+                        # check if an ingredient is missing
+                        if ingredientEntry.upper() not in ingList:
+                            toSkip = True
+                            break
+                    if toSkip:
+                        break
+            # if all match, add to output
+            if not toSkip:
+                output.append(drink)
         return output
 
     @staticmethod
@@ -72,17 +137,17 @@ class Api:
             keysList.append(keys)
         return list(set.intersection(*keysList))
 
-    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Optional[DrinkQueried]]:
+    def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[DrinkQueried]:
         """
         Queries the API with given args
         :param searchType: str - lookup/filter
         :param key: str - s/i/a/c/g
         :param payload: str - param payload (public test key call)
                         list - param payload (premium key & ingredients call)
-        :return: List[Optional[Dict[str, Optional[str]]]] - list of drink entry
+        :return: List[Dict[str, Optional[str]]] - list of drink entry
         """
         try:
-            url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
+            url = API_BASE_URL + self._keyApi + '/' + searchType + '.php'
             data = requests.get(url, params={key: payload})
             data.raise_for_status()
         # Response code not 200
@@ -101,24 +166,18 @@ class Api:
             raise TypeError('Query results 0 - Information does not exist in database.')
         return data['drinks']
 
-    def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
+    def queryFilters(self, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
                      glass: str = None) -> List[List[DrinkQueried]]:
         """
         Fetch list of cocktails with cocktail filters from API
-        :param name: str - cocktail name
         :param alcoholic: str - Alcoholic, Non Alcoholic, or Optional alcohol
         :param category: str - drink category: Ordinary Drink, Cocktail, Cocoa, etc
         :param glass: str - glass type: Highball glass, Cocktail glass, etc
         :param ingredients: List[str] - List of filters (ingredients/alcoholic/category/glass) strings
-        :return: List[List[Dict[str, str]]] - List containing the List of drinks Dict queried
+        :return: List[List[Dict[str, Optional[str]]]] - List containing the List of drinks Dict queried from the filter hints
         """
         # holds all drink query responses
         cocktails = []
-        # get drinks from name
-        if name:
-            f0 = self.queryApi('search', 's', name)
-            if f0:
-                cocktails.append(f0)
         # get drinks from ingredients
         if ingredients:
             # if premium key, use multi-ingredient filter
@@ -155,6 +214,7 @@ class Cocktail:
     """
     Cocktail class for accessing cocktail information attributes
     """
+
     def __init__(self, cocktailDict: Dict[str, str]) -> None:
         """
         Cocktail constructor
@@ -227,27 +287,25 @@ class Cocktail:
         :return: Dict[str, str] - param key (name, ing, alc, cat, gla), corresponding attribute value
         """
         output = {}
-        # if id given, give ID as hint
-        if self.id:
-            output['id'] = self.id
-        # else give name, ingredients, alcoholic, category, glass as hints
+        # give ID, name, ingredients, alcoholic, category, glass as hints
         # only include not None values
-        else:
-            if self.nameEN is not None:
-                output['name'] = self.nameEN
-            ingrList = []
-            for i in range(1, 15 + 1):
-                ingr = getattr(self, 'ingredient' + str(i))
-                if ingr is not None:
-                    ingrList.append(ingr)
-            if ingrList:
-                output['ing'] = ingrList
-            if self.alcoholic is not None:
-                output['alc'] = self.alcoholic
-            if self.category is not None:
-                output['cat'] = self.category
-            if self.glass is not None:
-                output['gla'] = self.glass
+        if self.id is not None:
+            output['id'] = self.id
+        if self.nameEN is not None:
+            output['name'] = self.nameEN
+        ingrList = []
+        for i in range(1, 15 + 1):
+            ingr = getattr(self, 'ingredient' + str(i))
+            if ingr is not None:
+                ingrList.append(ingr)
+        if ingrList:
+            output['ing'] = ingrList
+        if self.alcoholic is not None:
+            output['alc'] = self.alcoholic
+        if self.category is not None:
+            output['cat'] = self.category
+        if self.glass is not None:
+            output['gla'] = self.glass
         return output
 
     def getRecipes(self) -> List[Dict[str, str]]:
