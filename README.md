@@ -1,11 +1,8 @@
 # Cocktail search
 A simple program function that fetches cocktails and outputs a JSON file. Uses TheCocktailDB API to fetch and retrieve
 cocktail information.
-## Installation
-```
-python -m pip install 'git+https://github.com/johnpvalerio/cocktail_search.git'
-```
-### Requirements
+
+## Requirements
 - Python 3
 - [Requests >= 2.25.1](https://requests.readthedocs.io/en/master/user/install/#install) - HTTP library
 ## Setup
