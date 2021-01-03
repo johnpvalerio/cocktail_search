@@ -23,14 +23,54 @@ From a file, it will loop through each drink entry to be processed.
 - `requests.exceptions.HTTPError` - HTTP GET request error, did not return a `[200 response]` status code. API key may be incorrect. Skip to next drink input.
 - `TypeError` - Queried input did not yield results, skip to next drink input. \
   Possible cause: 
-  - No valid hints given - combination of drink information have no drink in common
-  - No entry found with given requirements - input file drink entry key or values are in incorrect format
-  - No info found - queried may be in database but not shown (maybe caused by using public test API key)\
-    Either not all information on an item is given or query results are limited.
-    - ex: searching for drinks with ingredient `cherry` will bring no value even though it is a valid ingredient.
-    - ex: `"Long Island Iced Tea"` is a valid entry with the category `"Ordinary Drink"` but searching for drinks with 
-      category `"Ordinary Drinks"` does not include `"Long Island Iced Tea"`.
-  - Info not found in database - queried input not in database
+  - No hints given - input file contents are invalid or empty
+    - ex: 
+      ```json
+      {
+       "drinks": [{}]
+       }
+      ```
+  - Hints given "" - input file contents value is ""  
+    - ex: 
+      ```json
+      {
+       "drinks": [{"idDrink":  ""},
+                  {"strDrink":  ""},
+                  {"strGlass":  ""},
+                  {"strCategory":  ""},
+                  {"strAlcoholic":  ""},
+                  {"strIngredient1":  ""}]
+       }
+      ```
+  - No entry found with given requirements - no matching drinks found with all requirements
+    - ex:
+      ```json
+      {
+       "drinks": [{"strDrink": "Long Island Iced Tea",
+                  "strCategory": "Cocktail"}]
+       }
+      ```
+      
+  - Information does not exist in database - Querying with invalid name, or id.
+    - ex: 
+        ```json
+      {
+       "drinks": [{"idDrink":  "1"},
+                  {"strDrink": "test"}]
+       }
+      ```
+  - Cannot retrieve information - Querying with invalid ingredient, glass, category, or alcoholic input.\
+  Using the public test API key may also trigger this because of limited query results.
+    - ex: 
+        ```json
+      {
+       "drinks": [{"strIngredient1":  "test"},
+                  {"strGlass": "test"},
+                  {"strCategory": "test"},
+                  {"strAlcoholic": "test"},
+                  {"strIngredient2": "cherry"}]
+       }
+      ```    
     
 ### cocktailsearch
 `cocktailsearch.py` initiates the search and output of the queries in a formatted result.\

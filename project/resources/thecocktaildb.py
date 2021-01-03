@@ -28,6 +28,14 @@ class Api:
         :return: List[Dict[str, Optional[str]]] - List of drink dictionary
         """
         output = []
+        # Check if any hints given
+        if not hints:
+            raise TypeError("Query results 0 - No hints given")
+        # Check if hints are ""
+        if not all(hints.values()):
+            raise TypeError("Query results 0 - Hints given \"\"")
+        if 'ing' in hints and not all(hints['ing']):
+            raise TypeError("Query results 0 - Hints given \"\"")
         # query ID immediately
         if 'id' in hints:
             qid = self.queryApi('lookup', 'i', hints['id'])
@@ -40,7 +48,6 @@ class Api:
             alc = hints['alc'] if 'alc' in hints else None
             cat = hints['cat'] if 'cat' in hints else None
             gla = hints['gla'] if 'gla' in hints else None
-
             qResults = self.queryFilters(name=name, ingredients=ing, alcoholic=alc, category=cat, glass=gla)
             commonKeys = self.intersectKeys(*qResults)
             # get cocktail detail for each entry
@@ -59,14 +66,11 @@ class Api:
         :param cocktails: List[Dict[str, Optional[str]]] - Lists of cocktail dicts
         :return: List[str] - List of idDrink strings
         """
-        keys = []
-        for _c in cocktails:
-            keys1 = set(x['idDrink'] for x in _c)
-            keys.append(keys1)
-        # No keys found, may be triggered when drink input is empty
-        if not keys:
-            raise TypeError("Query results 0 - No valid hints given")
-        return list(set.intersection(*keys))
+        keysList = []
+        for drink in cocktails:
+            keys = set(x['idDrink'] for x in drink)
+            keysList.append(keys)
+        return list(set.intersection(*keysList))
 
     def queryApi(self, searchType: str, key: str, payload: Union[str, List[str]]) -> List[Optional[DrinkQueried]]:
         """
@@ -76,7 +80,6 @@ class Api:
         :param payload: str - param payload (public test key call)
                         list - param payload (premium key & ingredients call)
         :return: List[Optional[Dict[str, Optional[str]]]] - list of drink entry
-                                                            list empty if error
         """
         try:
             url = API_BASE_URL + self._keyApi + '/'+searchType+'.php'
@@ -87,7 +90,7 @@ class Api:
             raise requests.exceptions.HTTPError("Bad API key") from e
         # Response empty/not found, may be triggered when using public API key
         if data.text == '':
-            raise TypeError('Query results 0 - No info found')
+            raise TypeError('Query results 0 - Cannot retrieve information.')
         data = data.json()
         # check if theres contents in drinks
         try:
@@ -95,7 +98,7 @@ class Api:
             data['drinks'][0]
         # Response gave None
         except TypeError:
-            raise TypeError('Query results 0 - Info not found in database')
+            raise TypeError('Query results 0 - Information does not exist in database.')
         return data['drinks']
 
     def queryFilters(self, name: str = None, ingredients: List[str] = None, alcoholic: str = None, category: str = None,
@@ -235,7 +238,7 @@ class Cocktail:
             ingrList = []
             for i in range(1, 15 + 1):
                 ingr = getattr(self, 'ingredient' + str(i))
-                if ingr:
+                if ingr is not None:
                     ingrList.append(ingr)
             if ingrList:
                 output['ing'] = ingrList
